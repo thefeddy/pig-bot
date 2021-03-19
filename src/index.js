@@ -20,6 +20,15 @@ client.once('ready', () => {
     console.log(require('path').join(__dirname, ''))
     mongoClient.connect(mongoURL, function (err, db) {
         if (err) throw err;
+
+        if (!db.db('pig').collection('sounds').find()) {
+            db.db('pig').createCollection('sounds', function (err, res) {
+                if (err) throw err;
+                console.log("Sounds created!");
+                db.close();
+            });
+        }
+
         db.db('pig').collection('sounds').find({}).toArray(function (err, result) {
             if (err) throw err;
             commandList = result;
