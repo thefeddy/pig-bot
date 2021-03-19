@@ -13,7 +13,6 @@ const path = require('path');
 const mongoClient = require('mongodb').MongoClient;
 const mongoURL = process.env.MONGODB_URL;
 
-
 let commandList = [];
 
 client.once('ready', () => {
@@ -44,30 +43,37 @@ client.on('message', async msg => {
     console.log('oink oink')
     if (msg.member.voice.channel) {
         const command = msg.content.replace('!', '')
-        const playSound = commandList.find(object => object.alias === command);
-
+        console.log(commandList)
+        let playSound = commandList.find(object => object.alias === command);
+        console.log(playSound)
         if (playSound) {
             const connection = await msg.member.voice.channel.join();
             const dispatcher = connection.play(path.join(__dirname, `sounds/${playSound.sound}`), { volume: 0.5 });
-            dispatcher.on('start', () => {
-                console.log('audio.mp3 is now playing!');
-            });
-
-            dispatcher.on('finish', () => {
-                console.log('audio.mp3 has finished playing!');
-            });
         }
-        console.log(playSound)
     }
 
     if (msg.content.startsWith(prefix + `add`)) {
         const content = msg.content.split(' ');
-        const sound = content[1];
-        const alias = content[2];
+        let sound = null;
+        let alias = null;
+
+        try {
+            const soundURL = new URL(content[1]);
+            sound = content[1];
+            alias = content[2];
+
+        } catch (error) {
+            if (msg.attachments.first()) {//checks if an attachment is sent
+                sound = msg.attachments.first().url;
+                alias = content[1];
+            }
+        }
+
         const parsed = url.parse(sound);
         const name = path.basename(parsed.pathname);
 
         const file = fs.createWriteStream(`${process.env.MEDIA}/${name}`);
+
         const request = https.get(sound, function (response) {
             response.pipe(file);
         })
@@ -80,7 +86,8 @@ client.on('message', async msg => {
                 const pigSound = { alias, sound: `${name}` };
                 db.db('pig').collection('sounds').insertOne(pigSound, function (err, res) {
                     if (err) throw err;
-                    commandList.push({ pigSound });
+                    commandList.push(pigSound);
+
                     db.close();
                 });
 
@@ -90,7 +97,7 @@ client.on('message', async msg => {
         request.on('error', function (err) { // Handle errors
             fs.unlink(`${process.env.MEDIA}/${name}`); // Delete the file async. (But we don't check the result)
             if (cb) cb(err.message);
-        });;
+        });
     }
 });
 
